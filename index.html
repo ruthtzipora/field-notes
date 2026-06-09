@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Field Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  html { background: #f8fafc; }
+  body { font-family: 'Lora', Georgia, serif; color: #1e2d3d; background: #f8fafc; min-height: 100vh; padding: 0 1.25rem; margin: 0; }
+  * { box-sizing: border-box; }
+
+  .te-root { max-width: 720px; margin: 0 auto; padding: 0 0 4rem; }
+
+  /* Header */
+  .te-header { padding: 2.5rem 0 1.5rem; border-bottom: 1px solid #d0dce8; margin-bottom: 2rem; display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .te-title { font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 400; color: #1e2d3d; margin-bottom: 4px; }
+  .te-dateline { font-size: 11px; color: #7a90a4; letter-spacing: 0.1em; text-transform: uppercase; font-family: -apple-system, system-ui, sans-serif; }
+  .te-sunday-label { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; color: #185FA5; letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* API bar */
+  .te-api-bar { background: #eef2f7; border: 0.5px solid #c0cdd8; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 2rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .te-api-bar input { flex: 1; min-width: 200px; font-family: monospace; font-size: 13px; border: 0.5px solid #c0cdd8; border-radius: 8px; padding: 7px 10px; background: #ffffff; color: #1e2d3d; outline: none; }
+  .te-api-bar input:focus { border-color: #185FA5; }
+  .te-api-bar button { font-family: -apple-system, system-ui, sans-serif; font-size: 13px; padding: 7px 16px; border-radius: 8px; border: 0.5px solid #c0cdd8; background: #ffffff; color: #1e2d3d; cursor: pointer; white-space: nowrap; }
+  .te-api-bar button:hover { background: #f0f4f8; }
+  .te-api-status { font-size: 12px; color: #7a90a4; font-family: -apple-system, system-ui, sans-serif; margin-top: 6px; }
+
+  /* Section labels */
+  .te-section-label { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #7a90a4; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+  .te-section-label::after { content: ''; flex: 1; height: 0.5px; background: #c0cdd8; }
+
+  /* Brief header */
+  .te-brief-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 10px; }
+  .te-feed-controls { display: flex; gap: 6px; flex-wrap: wrap; }
+  .te-pill { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; padding: 4px 12px; border-radius: 20px; border: 0.5px solid #c0cdd8; background: #ffffff; color: #4a6278; cursor: pointer; transition: all 0.15s; }
+  .te-pill.active { background: #1e2d3d; color: #f8fafc; border-color: #1e2d3d; }
+  .te-pill:hover:not(.active) { background: #eef2f7; }
+  .te-brief-meta { display: flex; align-items: center; gap: 10px; }
+  .te-last-pulled { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; color: #7a90a4; }
+  .te-fetch-btn { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; padding: 5px 14px; border-radius: 20px; border: 0.5px solid #c0cdd8; background: #ffffff; color: #4a6278; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: all 0.15s; }
+  .te-fetch-btn:hover { background: #eef2f7; }
+  .te-fetch-btn.loading { opacity: 0.5; pointer-events: none; }
+  .te-force-refresh { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; color: #7a90a4; background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; padding: 0; display: none; }
+  .te-force-refresh:hover { color: #185FA5; }
+
+  /* Feed items */
+  .te-item { border: 0.5px solid #c0cdd8; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 0.75rem; background: #ffffff; transition: border-color 0.15s; }
+  .te-item:hover { border-color: #185FA5; }
+  .te-item.sparked { border-color: #185FA5; background: #e8f1fb; }
+  .te-item-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .te-source-tag { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #7a90a4; }
+  .te-layer-tag { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+  .te-layer-tag.intellectual { background: #deedf8; color: #174e82; border: 0.5px solid #a8cce8; }
+  .te-layer-tag.zeitgeist    { background: #e4f0da; color: #2e5e18; border: 0.5px solid #a8d088; }
+  .te-layer-tag.friction     { background: #faeae4; color: #8a3018; border: 0.5px solid #e8b8a0; }
+  .te-item-title { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; font-weight: 400; line-height: 1.4; margin-bottom: 6px; color: #1e2d3d; }
+  .te-item-summary { font-size: 13px; line-height: 1.65; color: #4a6278; margin-bottom: 10px; }
+  .te-item-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .te-spark-btn { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; padding: 4px 10px; border-radius: 20px; border: 0.5px solid #c0cdd8; background: #ffffff; color: #4a6278; cursor: pointer; transition: all 0.15s; }
+  .te-spark-btn:hover { border-color: #185FA5; color: #185FA5; }
+  .te-spark-btn.on { background: #e8f1fb; border-color: #185FA5; color: #0c447c; }
+  .te-note-toggle { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; padding: 4px 10px; border-radius: 20px; border: 0.5px solid #d0dce8; background: transparent; color: #7a90a4; cursor: pointer; transition: all 0.15s; }
+  .te-note-toggle:hover { color: #4a6278; border-color: #c0cdd8; }
+
+  /* Stacked article notes */
+  .te-article-note-item { padding: 0.5rem 0; border-bottom: 0.5px solid #eef2f7; display: flex; gap: 8px; align-items: flex-start; }
+  .te-article-note-date { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; color: #8aa0b4; white-space: nowrap; min-width: 52px; padding-top: 2px; }
+  .te-article-note-text { font-size: 13px; line-height: 1.55; color: #1e2d3d; flex: 1; white-space: pre-wrap; }
+  .te-article-note-delete { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; color: #c0cdd8; background: none; border: none; cursor: pointer; padding: 0 0 0 4px; flex-shrink: 0; }
+  .te-article-note-delete:hover { color: #8a3018; }
+  .te-article-note-new { margin-top: 8px; }
+  .te-article-note-new textarea { width: 100%; font-family: 'Lora', Georgia, serif; font-size: 13px; line-height: 1.6; border: 0.5px solid #c0cdd8; border-radius: 8px; padding: 7px 10px; background: #ffffff; color: #1e2d3d; resize: vertical; outline: none; }
+  .te-article-note-new textarea:focus { border-color: #185FA5; }
+  .te-article-note-actions { display: flex; justify-content: flex-end; margin-top: 6px; gap: 8px; }
+  .te-article-note-save { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; padding: 5px 14px; border-radius: 20px; border: 0.5px solid #185FA5; background: #185FA5; color: #ffffff; cursor: pointer; transition: opacity 0.15s; }
+  .te-article-note-save:hover { opacity: 0.85; }
+  .te-save-tomorrow-btn { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; padding: 4px 10px; border-radius: 20px; border: 0.5px solid #d0dce8; background: transparent; color: #7a90a4; cursor: pointer; transition: all 0.15s; }
+  .te-save-tomorrow-btn:hover { color: #2e5e18; border-color: #a8d088; background: #e4f0da; }
+  .te-save-tomorrow-btn.on { background: #e4f0da; border-color: #a8d088; color: #2e5e18; }
+  .te-carried-badge { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; padding: 2px 8px; border-radius: 10px; background: #fff8e4; color: #7a5c00; border: 0.5px solid #e8d488; margin-left: 4px; }
+  .te-note-area { margin-top: 10px; display: none; }
+  .te-note-area.open { display: block; }
+  .te-note-area textarea { width: 100%; font-family: 'Lora', Georgia, serif; font-size: 13px; line-height: 1.6; border: 0.5px solid #c0cdd8; border-radius: 8px; padding: 8px 10px; background: #ffffff; color: #1e2d3d; resize: vertical; min-height: 60px; outline: none; }
+  .te-link { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; color: #7a90a4; text-decoration: none; display: flex; align-items: center; gap: 3px; margin-left: auto; }
+  .te-link:hover { color: #185FA5; }
+
+  .te-divider { margin: 2rem 0; border: none; border-top: 0.5px solid #c0cdd8; }
+
+  /* Shelf */
+  .te-shelf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+  .te-shelf-item { border: 0.5px solid #c0cdd8; border-radius: 12px; padding: 0.875rem 1rem; background: #ffffff; }
+  .te-shelf-item-title { font-family: 'Playfair Display', Georgia, serif; font-size: 13px; font-style: italic; color: #1e2d3d; line-height: 1.3; }
+  .te-shelf-item-author { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; color: #7a90a4; margin-bottom: 8px; }
+  .te-shelf-item textarea { width: 100%; font-family: 'Lora', Georgia, serif; font-size: 12px; line-height: 1.55; border: 0.5px solid #d0dce8; border-radius: 8px; padding: 6px 8px; background: #ffffff; color: #1e2d3d; resize: none; min-height: 50px; outline: none; }
+  .te-shelf-item-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .te-shelf-action { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; padding: 3px 9px; border-radius: 20px; border: 0.5px solid #d0dce8; background: transparent; color: #7a90a4; cursor: pointer; transition: all 0.15s; }
+  .te-shelf-action.finish:hover { color: #2a6e30; border-color: #88c890; background: #eaf4ec; }
+  .te-shelf-action.aside:hover  { color: #6e4a30; border-color: #c8a888; background: #f4ede8; }
+  .te-shelf-add { font-family: -apple-system, system-ui, sans-serif; font-size: 12px; padding: 6px 14px; border-radius: 8px; border: 0.5px dashed #c0cdd8; background: transparent; color: #7a90a4; cursor: pointer; width: 100%; text-align: center; margin-top: 0.5rem; }
+  .te-shelf-add:hover { color: #185FA5; border-color: #185FA5; background: #eef2f7; }
+
+  /* Archive - collapsible */
+  .te-archive-toggle { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; color: #7a90a4; background: none; border: none; cursor: pointer; padding: 0.75rem 0 0; display: flex; align-items: center; gap: 5px; }
+  .te-archive-toggle:hover { color: #4a6278; }
+  .te-shelf-archive-list { margin-top: 0.75rem; display: none; }
+  .te-shelf-archive-list.open { display: block; }
+  .te-shelf-archive-item { padding: 0.625rem 0; border-bottom: 0.5px solid #d0dce8; display: flex; gap: 12px; align-items: flex-start; }
+  .te-shelf-archive-meta { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; color: #7a90a4; white-space: nowrap; min-width: 80px; padding-top: 2px; }
+  .te-shelf-archive-badge { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; padding: 2px 7px; border-radius: 10px; margin-left: 6px; }
+  .te-shelf-archive-badge.finished { background: #deedf8; color: #174e82; border: 0.5px solid #a8cce8; }
+  .te-shelf-archive-badge.aside    { background: #f4ede8; color: #6e4a30; border: 0.5px solid #c8a888; }
+  .te-archive-item-actions { display: flex; gap: 6px; margin-top: 5px; }
+  .te-archive-item-btn { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; padding: 2px 9px; border-radius: 20px; border: 0.5px solid #d0dce8; background: transparent; color: #7a90a4; cursor: pointer; transition: all 0.15s; }
+  .te-archive-item-btn.restore:hover { color: #185FA5; border-color: #a8cce8; background: #eef2f7; }
+  .te-archive-item-btn.delete:hover  { color: #8a3018; border-color: #e8b8a0; background: #faeae4; }
+
+  /* Global input */
+  .te-global-input { border: 0.5px solid #c0cdd8; border-radius: 12px; padding: 1rem 1.25rem; background: #ffffff; margin-bottom: 0.75rem; }
+  .te-global-input textarea { width: 100%; font-family: 'Lora', Georgia, serif; font-size: 14px; line-height: 1.7; border: none; background: transparent; color: #1e2d3d; resize: none; min-height: 80px; outline: none; }
+  .te-global-input textarea::placeholder { color: #8aa0b4; font-style: italic; }
+  .te-global-footer { display: flex; align-items: center; gap: 8px; border-top: 0.5px solid #d0dce8; padding-top: 8px; margin-top: 8px; }
+  .te-attribution { flex: 1; font-family: -apple-system, system-ui, sans-serif; font-size: 12px; border: none; background: transparent; color: #4a6278; outline: none; }
+  .te-attribution::placeholder { color: #8aa0b4; }
+  .te-save-btn { font-family: -apple-system, system-ui, sans-serif; font-size: 12px; padding: 5px 14px; border-radius: 8px; border: 0.5px solid #c0cdd8; background: #ffffff; color: #1e2d3d; cursor: pointer; }
+  .te-save-btn:hover { background: #eef2f7; }
+
+  /* Fragment archive */
+  .te-archive-peek { margin-top: 1rem; }
+  .te-archive-entry { padding: 0.625rem 0; border-bottom: 0.5px solid #d0dce8; display: flex; gap: 12px; align-items: flex-start; }
+  .te-archive-date { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; color: #7a90a4; white-space: nowrap; min-width: 70px; padding-top: 2px; }
+  .te-archive-text { font-size: 13px; line-height: 1.55; color: #4a6278; }
+  .te-archive-source { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; color: #7a90a4; font-style: italic; }
+  .te-archive-delete { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; color: #aabbc8; background: none; border: none; cursor: pointer; padding: 2px 4px; margin-left: auto; flex-shrink: 0; }
+  .te-archive-delete:hover { color: #8a3018; }
+
+  .te-empty    { font-size: 13px; color: #8aa0b4; font-style: italic; padding: 1.5rem 0; text-align: center; }
+  .te-error    { font-size: 13px; color: #4a6278; line-height: 1.7; padding: 1rem 0; text-align: center; }
+  .te-progress { font-family: -apple-system, system-ui, sans-serif; font-size: 12px; color: #7a90a4; font-style: italic; padding: 1rem 0; text-align: center; }
+
+  /* Sunday section */
+  /* Sunday curator */
+  .te-curator-section { margin-bottom: 1.25rem; }
+  .te-curator-section-label { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #7a90a4; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; }
+  .te-curator-select-all { font-family: -apple-system, system-ui, sans-serif; font-size: 11px; color: #7a90a4; background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; padding: 0; }
+  .te-curator-select-all:hover { color: #185FA5; }
+  .te-curator-item { display: flex; gap: 10px; align-items: flex-start; padding: 0.625rem 0; border-bottom: 0.5px solid #d0dce8; cursor: pointer; }
+  .te-curator-item:hover { background: #f8fafc; }
+  .te-curator-item input[type=checkbox] { margin-top: 3px; flex-shrink: 0; accent-color: #185FA5; width: 14px; height: 14px; cursor: pointer; }
+  .te-curator-item-text { font-size: 13px; line-height: 1.55; color: #1e2d3d; flex: 1; }
+  .te-curator-item-title { font-family: 'Playfair Display', Georgia, serif; font-size: 13px; font-style: italic; color: #4a6278; margin-bottom: 2px; }
+  .te-curator-item-note { font-size: 12px; color: #1e2d3d; line-height: 1.5; }
+  .te-curator-item-source { font-family: -apple-system, system-ui, sans-serif; font-size: 10px; color: #8aa0b4; margin-top: 2px; }
+  .te-curator-empty { font-size: 13px; color: #8aa0b4; font-style: italic; padding: 0.5rem 0; }
+
+  .te-sunday-section { border: 0.5px solid #c0cdd8; border-radius: 12px; padding: 1.5rem; background: #eef2f7; }
+  .te-sunday-section-title { font-family: 'Playfair Display', Georgia, serif; font-size: 18px; font-weight: 400; margin-bottom: 0.5rem; color: #1e2d3d; }
+  .te-sunday-intro { font-size: 13px; color: #4a6278; line-height: 1.7; margin-bottom: 1.25rem; font-style: italic; }
+  .te-sunday-paste { width: 100%; font-family: 'Lora', Georgia, serif; font-size: 13px; line-height: 1.6; border: 0.5px solid #c0cdd8; border-radius: 8px; padding: 8px 10px; background: #ffffff; color: #1e2d3d; resize: vertical; min-height: 100px; margin-bottom: 1rem; outline: none; }
+  .te-sunday-paste::placeholder { color: #8aa0b4; font-style: italic; }
+  .te-assemble-btn { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; font-weight: 400; padding: 10px 24px; border-radius: 8px; border: 0.5px solid #c0cdd8; background: #1e2d3d; color: #f8fafc; cursor: pointer; transition: opacity 0.15s; }
+  .te-assemble-btn:hover { opacity: 0.85; }
+  .te-assemble-btn:disabled { opacity: 0.5; pointer-events: none; }
+  .te-digest-output { margin-top: 1.5rem; display: none; }
+  .te-digest-output.visible { display: block; }
+  .te-digest-content { font-size: 14px; line-height: 1.9; color: #1e2d3d; font-family: 'Lora', Georgia, serif; padding-top: 1rem; border-top: 0.5px solid #c0cdd8; }
+  .te-digest-content h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 20px; font-weight: 400; margin: 0 0 1rem; color: #1e2d3d; }
+  .te-digest-content h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 16px; font-weight: 400; margin: 1.5rem 0 0.5rem; color: #1e2d3d; border-bottom: 0.5px solid #d0dce8; padding-bottom: 4px; }
+  .te-digest-content h3 { font-family: 'Playfair Display', Georgia, serif; font-size: 14px; font-weight: 400; margin: 1rem 0 0.25rem; color: #1e2d3d; }
+  .te-digest-content p { margin: 0 0 0.75rem; }
+  .te-digest-content ul { margin: 0 0 0.75rem 1.25rem; }
+  .te-digest-content li { margin-bottom: 0.5rem; }
+  .te-digest-content hr { border: none; border-top: 0.5px solid #d0dce8; margin: 1.25rem 0; }
+  .te-digest-content blockquote { border-left: 2px solid #c0cdd8; margin: 0.75rem 0 0.75rem 0; padding-left: 1rem; color: #4a6278; font-style: italic; }
+  .te-digest-content strong { font-weight: 600; color: #1e2d3d; }
+  .te-patterns-btn { font-family: -apple-system, system-ui, sans-serif; font-size: 12px; padding: 6px 14px; border-radius: 8px; border: 0.5px solid #c0cdd8; background: transparent; color: #4a6278; cursor: pointer; margin-top: 1.5rem; display: none; align-items: center; gap: 6px; }
+  .te-patterns-btn.visible { display: inline-flex; }
+  .te-patterns-btn:hover { background: #eef2f7; }
+
+  .spinner { width: 14px; height: 14px; border: 1.5px solid #c0cdd8; border-top-color: #185FA5; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 600px) {
+    .te-brief-header { flex-direction: column; align-items: flex-start; }
+    .te-shelf-grid { grid-template-columns: 1fr; }
+    .te-api-bar { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body>
+<div class="te-root">
+
+  <div class="te-header">
+    <div>
+      <div class="te-title">Field Notes</div>
+      <div class="te-dateline" id="te-date"></div>
+    </div>
+    <div class="te-sunday-label" id="sunday-label" style="display:none;">Sunday</div>
+  </div>
+  <div style="text-align:right;margin-bottom:1rem;">
+    <button onclick="exportData()" style="font-family:-apple-system,system-ui,sans-serif;font-size:11px;padding:4px 12px;border-radius:20px;border:0.5px solid #c0cdd8;background:#ffffff;color:#7a90a4;cursor:pointer;">Export my data</button>
+  </div>
+
+  <div class="te-api-bar">
+    <input type="password" id="api-key-input" placeholder="Paste your Anthropic API key..." />
+    <button onclick="saveApiKey()">Save key</button>
+  </div>
+  <div class="te-api-status" id="api-status"></div>
+
+  <div class="te-section-label">Today's brief</div>
+  <div class="te-brief-header">
+    <div class="te-feed-controls">
+      <button class="te-pill active" onclick="filterFeed('all', this)">All</button>
+      <button class="te-pill" onclick="filterFeed('intellectual', this)">Ideas</button>
+      <button class="te-pill" onclick="filterFeed('zeitgeist', this)">Culture</button>
+      <button class="te-pill" onclick="filterFeed('friction', this)">Friction</button>
+      <button class="te-pill" onclick="filterFeed('sparked', this)">Sparked</button>
+    </div>
+    <div class="te-brief-meta">
+      <span class="te-last-pulled" id="last-pulled"></span>
+      <button class="te-fetch-btn" id="fetch-btn" onclick="fetchBrief(false)">Pull brief</button>
+    </div>
+  </div>
+  <div id="feed-container"><div class="te-empty">Pull today's brief above.</div></div>
+  <div style="margin-top: 8px; text-align: right;">
+    <button class="te-force-refresh" id="force-refresh-btn" onclick="fetchBrief(true)">Force refresh</button>
+  </div>
+
+  <hr class="te-divider">
+  <div class="te-section-label">The shelf -- what I'm reading</div>
+  <div class="te-shelf-grid" id="shelf-grid"></div>
+  <button class="te-shelf-add" onclick="addShelfItem()">+ Add book or media</button>
+  <div id="shelf-archive-section"></div>
+
+  <hr class="te-divider">
+  <div class="te-section-label">Idea shelf -- capture anything</div>
+  <div class="te-global-input">
+    <textarea id="global-input" placeholder="Paste or type anything..." rows="3"></textarea>
+    <div class="te-global-footer">
+      <input class="te-attribution" id="global-attr" placeholder="Source (optional)" />
+      <button class="te-save-btn" onclick="saveGlobalNote()">Save fragment</button>
+    </div>
+  </div>
+  <div class="te-section-label" style="margin-top:1.5rem;">Recent fragments</div>
+  <div class="te-archive-peek" id="archive-peek"></div>
+  <div id="orphaned-notes-section"></div>
+
+  <div id="sunday-section" style="display:none;">
+    <hr class="te-divider">
+    <div class="te-sunday-section">
+      <div class="te-sunday-section-title">Assemble this week</div>
+      <div class="te-sunday-intro">Here is everything you captured this week. Check what you want in this week's digest, then assemble.</div>
+
+      <div id="sunday-curator"></div>
+
+      <div style="margin-top:1.25rem;">
+        <div style="font-family:-apple-system,system-ui,sans-serif;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#7a90a4;margin-bottom:0.75rem;">Anything else to add</div>
+        <textarea class="te-sunday-paste" id="sunday-paste" placeholder="Paste anything additional from your reading log, clinic notes, anywhere..."></textarea>
+      </div>
+
+      <button class="te-assemble-btn" id="assemble-btn" onclick="assembleWeek()">Assemble this week -></button>
+      <div class="te-digest-output" id="digest-output">
+        <div class="te-digest-content" id="digest-content"></div>
+        <button class="te-patterns-btn" id="patterns-btn" onclick="findPatterns()">Find patterns in this week's material</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+var STORAGE_KEY = 'te_v9';
+var TODAY = new Date().toDateString();
+
+var FEEDS = [
+  { url: 'https://aeon.co/feed.rss', source: 'Aeon', layer: 'intellectual' },
+  { url: 'https://psyche.co/feed', source: 'Psyche', layer: 'intellectual' },
+  { url: 'https://www.technologyreview.com/feed/', source: 'MIT Tech Review', layer: 'friction' },
+  { url: 'https://www.statnews.com/feed/', source: 'STAT News', layer: 'friction' },
+  { url: 'https://lithub.com/feed/', source: 'Literary Hub', layer: 'zeitgeist' },
+  { url: 'https://www.publicbooks.org/feed/', source: 'Public Books', layer: 'zeitgeist' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Health.xml', source: 'NYT Health', layer: 'zeitgeist' },
+  { url: 'https://www.newyorker.com/feed/everything', source: 'New Yorker', layer: 'zeitgeist' },
+  { url: 'https://www.theatlantic.com/feed/all/', source: 'The Atlantic', layer: 'intellectual' },
+  { url: 'https://www.thehastingscenter.org/feed/', source: 'Hastings Center', layer: 'intellectual' },
+];
+
+var SCORE_PROMPT = 'You are a curator for a clinical neuropsychologist named Ruth who writes at the intersection of dementia phenomenology, embodied cognition, AI\'s misunderstanding of mind, and consciousness studies. Her voice is literary, critical, and clinical.\n\nHer core interests: what the lived experience of cognitive dissolution reveals about selfhood; how AI discourse ignores embodiment; the gap between biomarker reductionism and phenomenological reality; medical humanities and narrative medicine; philosophy of mind; age tech claims deserving scrutiny.\n\nFrom the articles below, select the 7-10 most relevant. Assign each a layer:\n- "intellectual": philosophy of mind, consciousness, medical humanities, narrative medicine, embodied cognition\n- "zeitgeist": mainstream culture touching her territory -- memoirs, journalism, essays about memory/aging/AI\n- "friction": age tech or AI claims deserving critical scrutiny\n\nReturn ONLY a raw JSON array starting with [. No markdown, no preamble.\nEach object: { "id": string, "title": string, "source": string, "layer": string, "summary": "2-3 sentences in thoughtful editorial voice", "url": string }\n\nARTICLES:\n';
+
+function getState() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultState(); }
+  catch(e) { return defaultState(); }
+}
+function defaultState() {
+  return { apiKey: '', feedItems: [], feedDate: '', sparked: [], notes: {}, noteDates: {}, articleNotes: {}, shelf: [], shelfArchive: [], fragments: [], digestContent: '', savedForTomorrow: [], seenUrls: [], seenUrlDates: {} };
+}
+function saveState(s) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+function isSunday() { return new Date().getDay() === 0; }
+function formatDate() { return new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
+
+function saveApiKey() {
+  var key = document.getElementById('api-key-input').value.trim();
+  if (!key) return;
+  var s = getState(); s.apiKey = key; saveState(s);
+  document.getElementById('api-key-input').value = '****************';
+  document.getElementById('api-status').textContent = 'Key saved.';
+  setTimeout(function() { document.getElementById('api-status').textContent = ''; }, 2000);
+}
+
+function setProgress(msg) {
+  document.getElementById('feed-container').innerHTML = '<div class="te-progress">' + msg + '</div>';
+}
+
+// fetchOneFeed replaced by web search approach
+
+async function callClaude(prompt, maxTokens) {
+  var s = getState();
+  var body = JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] });
+  var res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': s.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: body
+  });
+  var data = await res.json();
+  if (data.error) throw new Error(data.error.message || 'API error');
+  var tb = (data.content || []).find(function(b) { return b.type === 'text'; });
+  return tb ? tb.text : '';
+}
+
+async function fetchBrief(force) {
+  var s = getState();
+  if (!s.apiKey) { alert('Paste your Anthropic API key above and click Save key.'); return; }
+  if (!force && s.feedDate === TODAY && s.feedItems.length) { renderFeed(); updateBriefMeta(); return; }
+
+  var btn = document.getElementById('fetch-btn');
+  btn.classList.add('loading');
+  btn.textContent = 'Pulling...';
+  document.getElementById('force-refresh-btn').style.display = 'none';
+
+  try {
+    setProgress('Searching for this week\'s articles...');
+
+    var today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    // Prune seenUrls older than 7 days
+    var seenUrls = s.seenUrls || [];
+    var seenUrlDates = s.seenUrlDates || {};
+    var oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000);
+    seenUrls = seenUrls.filter(function(url) {
+      return seenUrlDates[url] && new Date(seenUrlDates[url]).getTime() > oneYearAgo;
+    });
+    s.seenUrls = seenUrls;
+    s.seenUrlDates = seenUrlDates;
+    saveState(s);
+    var exclusionList = seenUrls.length ? 'Do not include ANY of these URLs which have already been shown this week:\n' + seenUrls.join('\n') + '\n\n' : '';
+
+    var searchPrompt = exclusionList +
+      'Today is ' + today + '. You are curating a daily brief for Ruth, a clinical neuropsychologist who writes about AI, selfhood, consciousness, embodied cognition, aging, and mind. She wants a mix of quality journalism (NYT, Atlantic, Guardian, New Yorker, Washington Post) and deeper intellectual pieces (Aeon, Psyche, philosophy blogs, medical humanities). She makes her own connections to dementia -- do not focus there.\n\n' +
+      'CRITICAL: Only return articles published in the last 14 days. If a search returns only older articles, skip those results entirely.\n\n' +
+      'Please run these specific searches one by one and collect results from each:\n\n' +
+      '1. "AI consciousness selfhood" past week - journalism and essays, not academic papers\n' +
+      '2. "memory identity aging" past week - NYT, Atlantic, Guardian, New Yorker, Washington Post\n' +
+      '3. "philosophy mind embodiment" recent essay - Aeon, Psyche, philosophy blogs\n' +
+      '4. "artificial intelligence personhood ethics" past week\n' +
+      '5. "what it means to be human AI" essay past week - cultural criticism, think pieces, op-eds\n' +
+      '6. "technology mind human experience" essay past week - literary and cultural publications\n' +
+      '7. "age tech aging technology" past week - startups, products, or initiatives for older adults\n' +
+      '8. "AI memory cognition claim research" past week - new findings or bold claims worth scrutinizing\n\n' +
+      'After running all searches, select the 5-6 best articles total across all results. Prioritize:\n' +
+      '- Recency (last 7 days strongly preferred over last 14)\n' +
+      '- Quality journalism and essays over academic papers\n' +
+      '- Variety across the search topics -- do not return multiple articles on the same angle\n' +
+      '- Open access preferred; if paywalled note it in the source field\n\n' +
+      'For each selected article assign a layer:\n' +
+      '- intellectual: philosophy, consciousness, medical humanities, embodied cognition\n' +
+      '- zeitgeist: quality journalism, essays, cultural criticism\n' +
+      '- friction: AI or tech claims about mind or memory deserving scrutiny\n\n' +
+      'Return ONLY a raw JSON array starting with [. No markdown, no preamble.\n' +
+      'Each object: { "id": unique short string, "title": string, "source": string, "layer": string, "summary": "2-3 sentences in a thoughtful literary voice -- what makes this worth her attention today", "url": string }\n\n' +
+      'CRITICAL: Only include articles with real verified URLs you found via search. Never invent URLs. Never return articles older than 14 days. Your entire response must be ONLY the JSON array -- no introduction, no explanation, no text before the [ or after the ].';
+
+    var body = JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 3000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{ role: 'user', content: searchPrompt }]
+    });
+
+    var res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': s.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: body
+    });
+
+    var data = await res.json();
+    if (data.error) throw new Error(data.error.message || 'API error');
+
+    var textBlock = null;
+    var blocks = data.content || [];
+    for (var i = blocks.length - 1; i >= 0; i--) {
+      if (blocks[i].type === 'text') { textBlock = blocks[i]; break; }
+    }
+
+    if (!textBlock || !textBlock.text.trim()) {
+      setProgress('Synthesizing results...');
+      var messages = [
+        { role: 'user', content: searchPrompt },
+        { role: 'assistant', content: data.content }
+      ];
+      var toolResults = [];
+      for (var j = 0; j < blocks.length; j++) {
+        if (blocks[j].type === 'tool_use') {
+          toolResults.push({ type: 'tool_result', tool_use_id: blocks[j].id, content: 'Search completed.' });
+        }
+      }
+      if (toolResults.length) messages.push({ role: 'user', content: toolResults });
+
+      var res2 = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': s.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 3000,
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          messages: messages
+        })
+      });
+      var data2 = await res2.json();
+      if (data2.error) throw new Error(data2.error.message || 'API error on second call');
+      var blocks2 = data2.content || [];
+      for (var k = blocks2.length - 1; k >= 0; k--) {
+        if (blocks2[k].type === 'text') { textBlock = blocks2[k]; break; }
+      }
+    }
+
+    if (!textBlock) throw new Error('No response from search. Try again.');
+
+    var raw = textBlock.text.trim();
+    var scored = null;
+
+    // Try to extract JSON array from response
+    function tryParseJson(text) {
+      var result = null;
+      var start = text.indexOf('['), end = text.lastIndexOf(']');
+      if (start !== -1 && end !== -1) {
+        try { result = JSON.parse(text.slice(start, end + 1)); } catch(e) {}
+      }
+      if (!result) {
+        var codeMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (codeMatch) {
+          var inner = codeMatch[1].trim();
+          var s2 = inner.indexOf('['), e2 = inner.lastIndexOf(']');
+          if (s2 !== -1 && e2 !== -1) { try { result = JSON.parse(inner.slice(s2, e2+1)); } catch(e) {} }
+        }
+      }
+      return result;
+    }
+
+    scored = tryParseJson(raw);
+
+    // If Claude returned reasoning text instead of JSON, ask it to just output the JSON
+    if (!scored || !scored.length) {
+      setProgress('Formatting results...');
+      var cleanupMessages = [
+        { role: 'user', content: searchPrompt },
+        { role: 'assistant', content: data.content },
+      ];
+      // Add any tool results
+      var toolResults2 = [];
+      for (var ti = 0; ti < blocks.length; ti++) {
+        if (blocks[ti].type === 'tool_use') {
+          toolResults2.push({ type: 'tool_result', tool_use_id: blocks[ti].id, content: 'Search completed.' });
+        }
+      }
+      if (toolResults2.length) cleanupMessages.push({ role: 'user', content: toolResults2 });
+      if (textBlock.text.trim()) {
+        cleanupMessages.push({ role: 'assistant', content: textBlock.text });
+      }
+      cleanupMessages.push({ role: 'user', content: 'Output ONLY the JSON array now. Nothing else. Start with [ and end with ].' });
+
+      var res3 = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': s.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 3000, messages: cleanupMessages })
+      });
+      var data3 = await res3.json();
+      if (!data3.error) {
+        var tb3 = (data3.content || []).find(function(b) { return b.type === 'text'; });
+        if (tb3) scored = tryParseJson(tb3.text);
+      }
+    }
+
+    if (!scored || !scored.length) {
+      console.log('Raw response:', raw.slice(0, 500));
+      throw new Error('Could not parse results. Try again in a moment.');
+    }
+
+    var carried = [];
+    if (s.savedForTomorrow && s.savedForTomorrow.length && s.feedItems.length) {
+      s.feedItems.forEach(function(item) {
+        if (s.savedForTomorrow.indexOf(item.id) !== -1) {
+          carried.push(Object.assign({}, item, { id: item.id + '_carried', carriedOver: true }));
+        }
+      });
+    }
+    // Deduplicate scored results by URL (in case multiple searches found same article)
+    var seenInThisBrief = {};
+    var deduped = [];
+    scored.forEach(function(item) {
+      if (item.url && !seenInThisBrief[item.url]) {
+        seenInThisBrief[item.url] = true;
+        deduped.push(item);
+      }
+    });
+
+    // Add new URLs to the weekly seen list
+    var now = new Date().toISOString();
+    deduped.forEach(function(item) {
+      if (item.url && s.seenUrls.indexOf(item.url) === -1) {
+        s.seenUrls.push(item.url);
+        s.seenUrlDates[item.url] = now;
+      }
+    });
+
+    s.feedItems = carried.concat(deduped);
+    s.savedForTomorrow = [];
+    s.feedDate = TODAY;
+    saveState(s);
+    renderFeed();
+    updateBriefMeta();
+
+  } catch(e) {
+    document.getElementById('feed-container').innerHTML = '<div class="te-error">Error: ' + e.message + '</div>';
+  }
+
+  btn.classList.remove('loading');
+  btn.textContent = 'Pull brief';
+  document.getElementById('force-refresh-btn').style.display = 'inline';
+}
+
+function updateBriefMeta() {
+  var s = getState();
+  document.getElementById('last-pulled').textContent = s.feedDate === TODAY ? 'pulled today' : s.feedDate ? 'pulled ' + s.feedDate : '';
+  document.getElementById('force-refresh-btn').style.display = s.feedItems.length ? 'inline' : 'none';
+}
+
+function saveForTomorrow(id) {
+  var s = getState();
+  if (s.savedForTomorrow.indexOf(id) === -1) s.savedForTomorrow.push(id);
+  saveState(s);
+  // Re-render to update button state
+  var active = document.querySelector('.te-pill.active');
+  var label = active ? active.textContent.trim().toLowerCase() : 'all';
+  renderFeed(label === 'all' ? null : label === 'sparked' ? 'sparked' : label);
+}
+
+function unsaveForTomorrow(id) {
+  var s = getState();
+  s.savedForTomorrow = s.savedForTomorrow.filter(function(x) { return x !== id; });
+  saveState(s);
+  var active = document.querySelector('.te-pill.active');
+  var label = active ? active.textContent.trim().toLowerCase() : 'all';
+  renderFeed(label === 'all' ? null : label === 'sparked' ? 'sparked' : label);
+}
+
+function renderFeed(filter) {
+  var s = getState();
+  var container = document.getElementById('feed-container');
+  var saved = s.savedForTomorrow || [];
+  // Bring saved-for-tomorrow items to top when viewing all
+  var toShow = s.feedItems.slice().sort(function(a, b) {
+    var aSaved = saved.indexOf(a.id) !== -1;
+    var bSaved = saved.indexOf(b.id) !== -1;
+    if (aSaved && !bSaved) return -1;
+    if (!aSaved && bSaved) return 1;
+    return 0;
+  });
+  if (filter === 'sparked') toShow = toShow.filter(function(i) { return s.sparked.indexOf(i.id) !== -1; });
+  else if (filter && filter !== 'all') toShow = toShow.filter(function(i) { return i.layer === filter; });
+  if (!toShow.length) {
+    container.innerHTML = filter === 'sparked' ? '<div class="te-empty">Nothing sparked yet.</div>' : '<div class="te-empty">Pull today\'s brief above.</div>';
+    return;
+  }
+  container.innerHTML = toShow.map(function(item) {
+    // Use URL as stable key so notes survive daily brief refreshes
+    var noteKey = item.url ? 'url_' + item.url.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 80) : (item.id || '').replace(/[^a-zA-Z0-9_]/g, '_');
+    var sparked = s.sparked.indexOf(noteKey) !== -1 || s.sparked.indexOf(item.id) !== -1;
+    var savedTomorrow = (s.savedForTomorrow || []).indexOf(noteKey) !== -1;
+    var note = s.notes[noteKey] || s.notes[item.id] || '';
+    var articleNotesList = (s.articleNotes && s.articleNotes[noteKey]) || [];
+    var noteCount = articleNotesList.length;
+    var hasNotes = noteCount > 0 || !!note;
+    var layerLabel = { intellectual: 'Ideas', zeitgeist: 'Culture', friction: 'Friction' }[item.layer] || item.layer;
+    var sid = (item.id || '').replace(/[^a-zA-Z0-9_]/g, '_');
+    return '<div class="te-item' + (sparked ? ' sparked' : '') + '" id="item-' + sid + '">' +
+      '<div class="te-item-meta"><span class="te-source-tag">' + item.source + '</span><span class="te-layer-tag ' + (item.layer||'') + '">' + layerLabel + '</span>' + (item.carriedOver ? '<span class="te-carried-badge">saved from yesterday</span>' : '') + '</div>' +
+      '<div class="te-item-title">' + item.title + '</div>' +
+      '<div class="te-item-summary">' + (item.summary || '') + '</div>' +
+      '<div class="te-item-actions">' +
+        '<button class="te-spark-btn' + (sparked ? ' on' : '') + '" onclick="toggleSpark(\'' + noteKey + '\')">' + (sparked ? 'sparked' : 'spark') + '</button>' +
+        '<button class="te-note-toggle" onclick="toggleNote(\'' + sid + '\', \'' + noteKey + '\')">' + (hasNotes ? 'notes (' + noteCount + ')' : '+ note') + '</button>' +
+        '<button class="te-save-tomorrow-btn' + (savedTomorrow ? ' on' : '') + '" onclick="' + (savedTomorrow ? 'unsaveForTomorrow' : 'saveForTomorrow') + '(\'' + noteKey + '\')">' + (savedTomorrow ? 'saved for tomorrow' : 'save for tomorrow') + '</button>' +
+        '<a class="te-link" href="' + (item.url||'#') + '" target="_blank" rel="noopener">read -></a>' +
+      '</div>' +
+      '<div class="te-note-area" id="note-' + noteKey.replace(/[^a-zA-Z0-9_]/g, '_') + '"></div>' +
+      '</div>';
+  }).join('');
+}
+
+function saveOpenNotes() {
+  // Notes now saved via Save button - this is a no-op kept for compatibility
+}
+
+function filterFeed(layer, btn) {
+  saveOpenNotes();
+  document.querySelectorAll('.te-pill').forEach(function(p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+  renderFeed(layer === 'all' ? null : layer);
+}
+
+function toggleSpark(id) {
+  saveOpenNotes();
+  var s = getState();
+  var idx = s.sparked.indexOf(id);
+  if (idx !== -1) s.sparked.splice(idx, 1); else s.sparked.push(id);
+  saveState(s);
+  var active = document.querySelector('.te-pill.active');
+  var label = active ? active.textContent.trim().toLowerCase() : 'all';
+  renderFeed(label === 'all' ? null : label === 'sparked' ? 'sparked' : label);
+}
+
+function toggleNote(id, noteKey) {
+  var safeNoteKey = noteKey.replace(/[^a-zA-Z0-9_]/g, '_');
+  var area = document.getElementById('note-' + safeNoteKey);
+  if (!area) return;
+  if (area.classList.contains('open')) {
+    area.classList.remove('open');
+    area.innerHTML = '';
+  } else {
+    renderArticleNotes(noteKey);
+  }
+}
+
+function saveNote(id, val) {
+  // Legacy single-note save - kept for compatibility
+  var s = getState();
+  s.notes[id] = val;
+  if (!s.noteDates) s.noteDates = {};
+  s.noteDates[id] = new Date().toISOString();
+  saveState(s);
+}
+
+function addArticleNote(noteKey) {
+  var ta = document.getElementById('new-note-' + noteKey.replace(/[^a-zA-Z0-9_]/g, '_'));
+  if (!ta || !ta.value.trim()) return;
+  var s = getState();
+  if (!s.articleNotes) s.articleNotes = {};
+  if (!s.articleNotes[noteKey]) s.articleNotes[noteKey] = [];
+  s.articleNotes[noteKey].push({ id: Date.now(), text: ta.value.trim(), date: new Date().toISOString() });
+  // Also migrate to legacy notes for digest compatibility
+  s.notes[noteKey] = s.articleNotes[noteKey].map(function(n) { return n.text; }).join('\n\n---\n\n');
+  if (!s.noteDates) s.noteDates = {};
+  s.noteDates[noteKey] = new Date().toISOString();
+  saveState(s);
+  ta.value = '';
+  // Re-render the note area
+  renderArticleNotes(noteKey);
+}
+
+function deleteArticleNote(noteKey, noteId) {
+  var s = getState();
+  if (!s.articleNotes || !s.articleNotes[noteKey]) return;
+  s.articleNotes[noteKey] = s.articleNotes[noteKey].filter(function(n) { return n.id !== noteId; });
+  // Update legacy notes
+  s.notes[noteKey] = s.articleNotes[noteKey].map(function(n) { return n.text; }).join('\n\n---\n\n');
+  if (!s.articleNotes[noteKey].length) {
+    delete s.notes[noteKey];
+    delete s.noteDates[noteKey];
+  }
+  saveState(s);
+  renderArticleNotes(noteKey);
+}
+
+function renderArticleNotes(noteKey) {
+  var s = getState();
+  if (!s.articleNotes) s.articleNotes = {};
+  var safeKey = noteKey.replace(/[^a-zA-Z0-9_]/g, '_');
+  var container = document.getElementById('note-' + safeKey);
+  if (!container) return;
+
+  var notes = s.articleNotes[noteKey] || [];
+  // Migrate legacy single note if exists and no articleNotes yet
+  if (!notes.length && s.notes[noteKey]) {
+    notes = [{ id: Date.now(), text: s.notes[noteKey], date: s.noteDates[noteKey] || new Date().toISOString() }];
+    s.articleNotes[noteKey] = notes;
+    saveState(s);
+  }
+
+  var html = '';
+  // Existing notes stacked
+  notes.forEach(function(n) {
+    var dateStr = new Date(n.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    html += '<div class="te-article-note-item">' +
+      '<div class="te-article-note-date">' + dateStr + '</div>' +
+      '<div class="te-article-note-text">' + n.text + '</div>' +
+      '<button class="te-article-note-delete" onclick="deleteArticleNote(\'' + noteKey + '\', ' + n.id + ')">x</button>' +
+      '</div>';
+  });
+
+  // New note input
+  html += '<div class="te-article-note-new">' +
+    '<textarea id="new-note-' + safeKey + '" placeholder="What does this spark?" rows="2"></textarea>' +
+    '<div class="te-article-note-actions">' +
+      '<button class="te-article-note-save" onclick="addArticleNote(\'' + noteKey + '\')">Save note</button>' +
+    '</div>' +
+    '</div>';
+
+  container.innerHTML = html;
+  container.classList.add('open');
+}
+
+function archiveShelfItem(id, status) {
+  var s = getState();
+  var item = s.shelf.find(function(i) { return i.id === id; });
+  if (!item) return;
+  s.shelfArchive.unshift(Object.assign({}, item, { status: status, archivedDate: new Date().toISOString() }));
+  s.shelf = s.shelf.filter(function(i) { return i.id !== id; });
+  saveState(s); renderShelf();
+}
+
+function restoreShelfItem(id) {
+  var s = getState();
+  var item = s.shelfArchive.find(function(i) { return i.id === id; });
+  if (!item) return;
+  s.shelf.push({ id: item.id, title: item.title, author: item.author, note: item.note });
+  s.shelfArchive = s.shelfArchive.filter(function(i) { return i.id !== id; });
+  saveState(s); renderShelf();
+}
+
+function deleteShelfArchiveItem(id) {
+  var s = getState();
+  s.shelfArchive = s.shelfArchive.filter(function(i) { return i.id !== id; });
+  saveState(s); renderShelf();
+}
+
+function toggleShelfArchive() {
+  var list = document.getElementById('shelf-archive-list');
+  var btn = document.getElementById('shelf-archive-toggle');
+  if (!list) return;
+  if (list.classList.contains('open')) {
+    list.classList.remove('open');
+    btn.textContent = 'Previously on the shelf (' + list.children.length + ') v';
+  } else {
+    list.classList.add('open');
+    btn.textContent = 'Previously on the shelf -- hide ^';
+  }
+}
+
+function renderShelf() {
+  var s = getState();
+  var grid = document.getElementById('shelf-grid');
+  grid.innerHTML = !s.shelf.length
+    ? '<div class="te-empty" style="grid-column:1/-1;padding:0.5rem 0;">Nothing on the shelf yet.</div>'
+    : s.shelf.map(function(item) {
+        return '<div class="te-shelf-item">' +
+          '<div class="te-shelf-item-title">' + item.title + '</div>' +
+          '<div class="te-shelf-item-author">' + item.author + '</div>' +
+          '<textarea placeholder="Notes, quotes..." onchange="saveShelfNote(\'' + item.id + '\', this.value)">' + item.note + '</textarea>' +
+          '<div class="te-shelf-item-actions">' +
+            '<button class="te-shelf-action finish" onclick="archiveShelfItem(\'' + item.id + '\',\'finished\')">Finished</button>' +
+            '<button class="te-shelf-action aside" onclick="archiveShelfItem(\'' + item.id + '\',\'aside\')">Set aside</button>' +
+          '</div></div>';
+      }).join('');
+
+  var archiveSection = document.getElementById('shelf-archive-section');
+  var archived = s.shelfArchive || [];
+  if (!archived.length) { archiveSection.innerHTML = ''; return; }
+
+  var itemsHtml = archived.map(function(item) {
+    var label = new Date(item.archivedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    var badge = item.status === 'finished'
+      ? '<span class="te-shelf-archive-badge finished">finished</span>'
+      : '<span class="te-shelf-archive-badge aside">set aside</span>';
+    return '<div class="te-shelf-archive-item">' +
+      '<div class="te-shelf-archive-meta">' + label + '</div>' +
+      '<div style="flex:1;">' +
+        '<div><span style="font-size:13px;color:#4a6278;font-style:italic;">' + item.title + '</span>' +
+        '<span style="font-family:-apple-system,sans-serif;font-size:11px;color:#8aa0b4;"> -- ' + item.author + '</span>' + badge + '</div>' +
+        (item.note ? '<div style="font-size:12px;color:#8aa0b4;margin-top:2px;font-style:italic;">' + (item.note.length > 100 ? item.note.slice(0,100)+'...' : item.note) + '</div>' : '') +
+        '<div class="te-archive-item-actions">' +
+          '<button class="te-archive-item-btn restore" onclick="restoreShelfItem(\'' + item.id + '\')">move back to shelf</button>' +
+          '<button class="te-archive-item-btn delete" onclick="deleteShelfArchiveItem(\'' + item.id + '\')">delete</button>' +
+        '</div>' +
+      '</div></div>';
+  }).join('');
+
+  archiveSection.innerHTML =
+    '<button class="te-archive-toggle" id="shelf-archive-toggle" onclick="toggleShelfArchive()">Previously on the shelf (' + archived.length + ') v</button>' +
+    '<div class="te-shelf-archive-list" id="shelf-archive-list">' + itemsHtml + '</div>';
+}
+
+function addShelfItem() {
+  var title = prompt('Title:'); if (!title) return;
+  var author = prompt('Author or source:') || '';
+  var s = getState();
+  s.shelf.push({ id: 's' + Date.now(), title: title, author: author, note: '' });
+  saveState(s); renderShelf();
+}
+
+function saveShelfNote(id, val) {
+  var s = getState();
+  var item = s.shelf.find(function(i) { return i.id === id; });
+  if (item) { item.note = val; item.noteDate = new Date().toISOString(); saveState(s); }
+}
+
+function saveGlobalNote() {
+  var text = document.getElementById('global-input').value.trim();
+  if (!text) return;
+  var attr = document.getElementById('global-attr').value.trim();
+  var s = getState();
+  s.fragments.unshift({ id: Date.now(), text: text, attribution: attr, date: new Date().toISOString() });
+  saveState(s);
+  document.getElementById('global-input').value = '';
+  document.getElementById('global-attr').value = '';
+  renderArchive();
+}
+
+function deleteFragment(id) {
+  var s = getState();
+  s.fragments = s.fragments.filter(function(f) { return f.id !== id; });
+  saveState(s); renderArchive();
+}
+
+function renderArchive(showAll) {
+  var s = getState();
+  var container = document.getElementById('archive-peek');
+  if (!s.fragments.length) { container.innerHTML = '<div class="te-empty">Nothing saved yet.</div>'; return; }
+  var toShow = showAll ? s.fragments : s.fragments.slice(0, 8);
+  var html = toShow.map(function(f) {
+    var label = new Date(f.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return '<div class="te-archive-entry">' +
+      '<div class="te-archive-date">' + label + '</div>' +
+      '<div style="flex:1;">' +
+        '<div class="te-archive-text">' + (f.text.length > 200 ? f.text.slice(0,200)+'...' : f.text) + '</div>' +
+        (f.attribution ? '<div class="te-archive-source">-- ' + f.attribution + '</div>' : '') +
+      '</div>' +
+      '<button class="te-archive-delete" onclick="deleteFragment(' + f.id + ')" title="Delete">x</button>' +
+      '</div>';
+  }).join('');
+  if (!showAll && s.fragments.length > 8) {
+    html += '<div style="padding:0.5rem 0;"><button onclick="renderArchive(true)" style="font-family:-apple-system,system-ui,sans-serif;font-size:11px;color:#7a90a4;background:none;border:none;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">View all ' + s.fragments.length + ' fragments</button></div>';
+  } else if (showAll && s.fragments.length > 8) {
+    html += '<div style="padding:0.5rem 0;"><button onclick="renderArchive(false)" style="font-family:-apple-system,system-ui,sans-serif;font-size:11px;color:#7a90a4;background:none;border:none;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">Show less</button></div>';
+  }
+  container.innerHTML = html;
+}
+
+async function assembleWeek() {
+  var s = getState();
+  if (!s.apiKey) { alert('Add your API key first.'); return; }
+
+  // Save any additional pasted content first
+  var pasted = document.getElementById('sunday-paste').value.trim();
+  if (pasted) {
+    s.fragments.unshift({ id: Date.now(), text: pasted, attribution: 'Sunday reading log', date: new Date().toISOString() });
+    saveState(s); renderArchive();
+    document.getElementById('sunday-paste').value = '';
+  }
+
+  var btn = document.getElementById('assemble-btn');
+  btn.disabled = true; btn.textContent = 'Assembling...';
+
+  var oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+
+  // Collect selected feed items/notes from checkboxes
+  var selectedFeedIds = {};
+  document.querySelectorAll('.curator-cb-feed:checked').forEach(function(cb) {
+    selectedFeedIds[cb.getAttribute('data-id')] = true;
+  });
+
+  // Build sparked/noted text from selected items
+  var sparkedLines = [];
+
+  // Selected feed items - check each note entry individually
+  s.feedItems.forEach(function(item) {
+    var urlKey = item.url ? 'url_' + item.url.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 80) : null;
+    var noteKey = urlKey || item.id;
+    var sparked = s.sparked.indexOf(item.id) !== -1 || (urlKey && s.sparked.indexOf(urlKey) !== -1);
+    var baseSid = 'feed_' + (item.id || '').replace(/[^a-zA-Z0-9_]/g, '_');
+
+    // Get stacked notes
+    var stackedNotes = (s.articleNotes && s.articleNotes[noteKey]) || [];
+    if (!stackedNotes.length && s.notes[noteKey]) {
+      stackedNotes = [{ id: 'legacy_' + noteKey, text: s.notes[noteKey] }];
+    }
+
+    var selectedNotes = [];
+    stackedNotes.forEach(function(n) {
+      var noteItemId = baseSid + '_' + n.id;
+      if (selectedFeedIds[noteItemId]) selectedNotes.push(n.text);
+    });
+
+    // Sparked with no notes
+    if (sparked && !stackedNotes.length && selectedFeedIds[baseSid]) {
+      sparkedLines.push('- ' + item.title + ' [sparked]');
+    } else if (selectedNotes.length) {
+      var flag = sparked ? ' [sparked]' : '';
+      sparkedLines.push('- ' + item.title + flag + '\n' + selectedNotes.map(function(t) { return '  Note: ' + t; }).join('\n'));
+    }
+  });
+
+  // Selected orphaned notes
+  var currentKeys = s.feedItems.map(function(item) {
+    return item.url ? 'url_' + item.url.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 80) : item.id;
+  });
+  var orphanedNoteKeys = Object.keys(s.notes).filter(function(k) {
+    return s.notes[k] && s.notes[k].trim() && currentKeys.indexOf(k) === -1;
+  });
+  orphanedNoteKeys.forEach(function(k, i) {
+    var sid = 'orphan_' + i;
+    if (selectedFeedIds[sid]) {
+      sparkedLines.push('- [note from previous article]:\n  ' + s.notes[k]);
+    }
+  });
+
+  var sparkedText = sparkedLines.length ? sparkedLines.join('\n') : 'Nothing marked or noted this week.';
+
+  // Selected shelf notes
+  var selectedShelfIds = {};
+  document.querySelectorAll('.curator-cb-shelf:checked').forEach(function(cb) {
+    selectedShelfIds[cb.getAttribute('data-id')] = true;
+  });
+  var shelfText = s.shelf.filter(function(i) { return i.note && selectedShelfIds[i.id]; })
+    .map(function(i) { return '- ' + i.title + ' by ' + i.author + ': ' + i.note; }).join('\n');
+
+  // Selected fragments
+  // Only fragments from the past 7 days
+  var oneWeekAgoMs = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  var weekFragments = s.fragments.filter(function(f) {
+    return new Date(f.date).getTime() > oneWeekAgoMs;
+  });
+  var selectedFragIds = {};
+  document.querySelectorAll('.curator-cb-frag:checked').forEach(function(cb) {
+    selectedFragIds[cb.getAttribute('data-id')] = true;
+  });
+  var fragText = s.fragments.filter(function(f) { return selectedFragIds[String(f.id)]; })
+    .map(function(f) { return '- ' + f.text + (f.attribution ? ' (from: ' + f.attribution + ')' : ''); }).join('\n');
+  var prompt = 'You are helping a clinical neuropsychologist and writer named Ruth prepare her Sunday digest. Present the following material in three sections. Do not interpret, summarize, or synthesize -- lay out her exact words faithfully. Use clean markdown formatting: ## for section headers, - for bullet points. End with one genuine question the week seems to be circling -- not a writing prompt, a real question.\n\n## What sparked something this week\n' + (sparkedText || 'Nothing marked or noted this week.') + '\n\n## From the shelf\n' + (shelfText || 'No shelf notes this week.') + '\n\n## Fragments captured\n' + (fragText || 'No fragments this week.');
+  var output = document.getElementById('digest-output');
+  output.classList.add('visible');
+  var content = document.getElementById('digest-content');
+  content.textContent = 'Assembling your week...';
+  try {
+    var text = await callClaude(prompt, 3000);
+    s.digestContent = text; saveState(s);
+    content.innerHTML = renderMarkdown(text);
+    document.getElementById('patterns-btn').classList.add('visible');
+    btn.disabled = false; btn.textContent = 'Reassemble';
+  } catch(e) {
+    content.textContent = 'Could not generate: ' + e.message;
+    btn.disabled = false; btn.textContent = 'Assemble this week ->';
+  }
+}
+
+async function findPatterns() {
+  var s = getState(); if (!s.apiKey) return;
+  var btn = document.getElementById('patterns-btn');
+  btn.textContent = 'Finding patterns...'; btn.style.pointerEvents = 'none';
+  var existing = document.getElementById('digest-content').textContent;
+  try {
+    var text = await callClaude('Based on the following weekly digest, identify 2-3 genuine patterns or resonances -- places where ideas seem to be in conversation across different domains. Be specific and spare. Do not tell her what to write -- just name what seems to be circling.\n\n' + existing, 600);
+    document.getElementById('digest-content').innerHTML = renderMarkdown(existing.replace(/<[^>]+>/g, '') + '\n\n## Patterns\n\n' + text);
+    btn.style.display = 'none';
+  } catch(e) { btn.textContent = 'Could not load patterns'; }
+}
+
+function exportData() {
+  var s = getState();
+  var exportObj = {
+    exportDate: new Date().toISOString(),
+    shelf: s.shelf,
+    shelfArchive: s.shelfArchive,
+    fragments: s.fragments,
+    sparked: s.sparked,
+    notes: s.notes,
+    feedItems: s.feedItems,
+    digestContent: s.digestContent
+  };
+  var blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'fieldnotes-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function renderMarkdown(text) {
+  if (!text) return '';
+  var html = text
+    // Escape HTML
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // Headers
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    // Bold
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // HR
+    .replace(/^---+$/gm, '<hr>')
+    // Blockquote
+    .replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>')
+    // Bullet lists - collect consecutive bullets into ul
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    // Paragraphs - double newlines
+    .replace(/\n\n/g, '</p><p>')
+    // Single newlines within paragraphs
+    .replace(/\n/g, '<br>');
+
+  // Wrap li elements in ul
+  html = html.replace(/(<li>.*?<\/li>)+/gs, function(match) {
+    return '<ul>' + match + '</ul>';
+  });
+
+  // Wrap in paragraph if not already block element
+  if (!html.match(/^<(h[1-3]|ul|hr|blockquote)/)) {
+    html = '<p>' + html + '</p>';
+  }
+
+  return html;
+}
+
+function renderSundayCurator() {
+  var container = document.getElementById('sunday-curator');
+  if (!container) return;
+  var s = getState();
+  if (!s.noteDates) s.noteDates = {};
+  var oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  // If noteDates is mostly empty (pre-timestamp notes), include all notes this session
+  var hasAnyDates = Object.keys(s.noteDates).length > 0;
+  var html = '';
+
+  // Section 1: Article notes from THIS WEEK only (filtered by noteDate)
+  var notedItems = [];
+  s.feedItems.forEach(function(item) {
+    var urlKey = item.url ? 'url_' + item.url.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 80) : null;
+    var noteKey = urlKey || item.id;
+    var sparked = s.sparked.indexOf(item.id) !== -1 || (urlKey && s.sparked.indexOf(urlKey) !== -1);
+
+    // Get stacked notes for this article
+    var stackedNotes = (s.articleNotes && s.articleNotes[noteKey]) || [];
+
+    // Migrate legacy single note if needed
+    if (!stackedNotes.length && s.notes[noteKey]) {
+      stackedNotes = [{ id: 'legacy_' + noteKey, text: s.notes[noteKey], date: s.noteDates[noteKey] || new Date().toISOString() }];
+    }
+
+    // Add each note as a separate selectable item
+    stackedNotes.forEach(function(n) {
+      var noteDate = n.date;
+      var isThisWeek = !hasAnyDates || !noteDate || new Date(noteDate).getTime() > oneWeekAgo;
+      if (!isThisWeek) return;
+      var dateStr = new Date(n.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      notedItems.push({
+        id: 'feed_' + (item.id || '').replace(/[^a-zA-Z0-9_]/g, '_') + '_' + n.id,
+        title: item.title, note: n.text, noteDate: dateStr,
+        sparked: sparked, source: item.source
+      });
+    });
+
+    // Sparked with no notes
+    if (sparked && !stackedNotes.length) {
+      notedItems.push({ id: 'feed_' + (item.id || '').replace(/[^a-zA-Z0-9_]/g, '_'), title: item.title, note: '', noteDate: '', sparked: true, source: item.source });
+    }
+  });
+
+  // Orphaned notes from this week only
+  var currentKeys = s.feedItems.map(function(item) {
+    return item.url ? 'url_' + item.url.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 80) : item.id;
+  });
+  var orphanedNotes = Object.keys(s.notes).filter(function(k) {
+    if (!s.notes[k] || !s.notes[k].trim()) return false;
+    if (currentKeys.indexOf(k) !== -1) return false;
+    var noteDate = s.noteDates[k];
+    return !hasAnyDates || !noteDate || new Date(noteDate).getTime() > oneWeekAgo;
+  });
+  orphanedNotes.forEach(function(k, i) {
+    notedItems.push({ id: 'orphan_' + i, title: 'Note from previous article', note: s.notes[k], sparked: false, source: '' });
+  });
+
+  if (notedItems.length) {
+    html += '<div class="te-curator-section">';
+    html += '<div class="te-curator-section-label"><span>Article notes + sparked (' + notedItems.length + ')</span>';
+    html += '<button class="te-curator-select-all" onclick="curatorSelectAll(\'feed\')"  >select all</button></div>';
+    notedItems.forEach(function(item) {
+      html += '<label class="te-curator-item">' +
+        '<input type="checkbox" class="curator-cb curator-cb-feed" data-id="' + item.id + '" checked>' +
+        '<div class="te-curator-item-text">' +
+          '<div class="te-curator-item-title">' + item.title + (item.sparked ? ' [sparked]' : '') + '</div>' +
+          (item.note ? '<div class="te-curator-item-note">' + item.note + '</div>' : '') +
+          '<div class="te-curator-item-source">' + (item.noteDate ? item.noteDate + ' -- ' : '') + item.source + '</div>' +
+        '</div></label>';
+    });
+    html += '</div>';
+  }
+
+  // Section 2: Shelf notes (show all current shelf notes)
+  var shelfNoted = s.shelf.filter(function(i) { return i.note && i.note.trim(); });
+  if (shelfNoted.length) {
+    html += '<div class="te-curator-section">';
+    html += '<div class="te-curator-section-label"><span>Shelf notes (' + shelfNoted.length + ')</span>';
+    html += '<button class="te-curator-select-all" onclick="curatorSelectAll(\'shelf\')">select all</button></div>';
+    shelfNoted.forEach(function(item) {
+      html += '<label class="te-curator-item">' +
+        '<input type="checkbox" class="curator-cb curator-cb-shelf" data-id="' + item.id + '" checked>' +
+        '<div class="te-curator-item-text">' +
+          '<div class="te-curator-item-title">' + item.title + ' -- ' + item.author + '</div>' +
+          '<div class="te-curator-item-note">' + item.note + '</div>' +
+        '</div></label>';
+    });
+    html += '</div>';
+  }
+
+  // Section 3: Fragments this week with show all toggle
+  var weekFragments = s.fragments.filter(function(f) {
+    return new Date(f.date).getTime() > oneWeekAgo;
+  });
+  var olderFragments = s.fragments.filter(function(f) {
+    return new Date(f.date).getTime() <= oneWeekAgo;
+  });
+
+  if (weekFragments.length || olderFragments.length) {
+    html += '<div class="te-curator-section">';
+    html += '<div class="te-curator-section-label"><span>Fragments this week (' + weekFragments.length + ')</span>';
+    html += '<button class="te-curator-select-all" onclick="curatorSelectAll(\'frag\')">select all</button></div>';
+
+    weekFragments.forEach(function(f, i) {
+      var label = new Date(f.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      html += '<label class="te-curator-item">' +
+        '<input type="checkbox" class="curator-cb curator-cb-frag" data-id="' + f.id + '" checked>' +
+        '<div class="te-curator-item-text">' +
+          '<div class="te-curator-item-note">' + f.text + '</div>' +
+          '<div class="te-curator-item-source">' + label + (f.attribution ? ' -- ' + f.attribution : '') + '</div>' +
+        '</div>' +
+        '<button class="te-archive-delete" onclick="event.preventDefault();deleteFragment(' + f.id + ');renderSundayCurator();" title="Delete">x</button>' +
+        '</label>';
+    });
+
+    if (olderFragments.length) {
+      html += '<div id="older-frags-section" style="display:none;">';
+      html += '<div style="font-family:-apple-system,sans-serif;font-size:10px;color:#8aa0b4;padding:0.5rem 0;letter-spacing:0.06em;text-transform:uppercase;">Older fragments</div>';
+      olderFragments.forEach(function(f) {
+        var label = new Date(f.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        html += '<label class="te-curator-item">' +
+          '<input type="checkbox" class="curator-cb curator-cb-frag" data-id="' + f.id + '">' +
+          '<div class="te-curator-item-text">' +
+            '<div class="te-curator-item-note">' + f.text + '</div>' +
+            '<div class="te-curator-item-source">' + label + (f.attribution ? ' -- ' + f.attribution : '') + '</div>' +
+          '</div>' +
+          '<button class="te-archive-delete" onclick="event.preventDefault();deleteFragment(' + f.id + ');renderSundayCurator();" title="Delete">x</button>' +
+          '</label>';
+      });
+      html += '</div>';
+      html += '<button onclick="var el=document.getElementById(\'older-frags-section\');el.style.display=el.style.display===\'none\'?\'block\':\'none\';this.textContent=el.style.display===\'none\'?\'Show older fragments (' + olderFragments.length + ')\':\'Hide older fragments\'" style="font-family:-apple-system,sans-serif;font-size:11px;color:#7a90a4;background:none;border:none;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0.5rem 0;">Show older fragments (' + olderFragments.length + ')</button>';
+    }
+    html += '</div>';
+  }
+
+  if (!html) {
+    html = '<div class="te-curator-empty">Nothing captured this week yet.</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function curatorSelectAll(type) {
+  var cbs = document.querySelectorAll('.curator-cb-' + type);
+  var allChecked = Array.from(cbs).every(function(cb) { return cb.checked; });
+  cbs.forEach(function(cb) { cb.checked = !allChecked; });
+}
+
+function renderOrphanedNotes() {
+  var s = getState();
+  var container = document.getElementById('orphaned-notes-section');
+  if (!container) return;
+  var currentKeys = s.feedItems.map(function(item) {
+    return item.url ? 'url_' + item.url.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 80) : (item.id || '').replace(/[^a-zA-Z0-9_]/g, '_');
+  });
+  var orphaned = Object.keys(s.notes).filter(function(key) {
+    return s.notes[key] && s.notes[key].trim() && currentKeys.indexOf(key) === -1;
+  });
+  if (!orphaned.length) { container.innerHTML = ''; return; }
+  var html = '<div class="te-section-label" style="margin-top:1.5rem;">Notes from previous articles</div>';
+  orphaned.forEach(function(key, idx) {
+    var noteText = s.notes[key];
+    var div = document.createElement('div');
+    div.className = 'te-archive-entry';
+    div.innerHTML = '<div class="te-archive-date" style="min-width:90px;font-size:10px;">prev. article</div>' +
+      '<div style="flex:1;"><div class="te-archive-text">' + noteText.slice(0, 300) + (noteText.length > 300 ? '...' : '') + '</div></div>';
+    var delBtn = document.createElement('button');
+    delBtn.className = 'te-archive-delete';
+    delBtn.title = 'Delete';
+    delBtn.textContent = 'x';
+    delBtn.setAttribute('data-key', key);
+    delBtn.addEventListener('click', function() { deleteOrphanedNote(this.getAttribute('data-key')); });
+    div.appendChild(delBtn);
+    html += div.outerHTML;
+  });
+  container.innerHTML = html;
+  // Re-attach event listeners since we used outerHTML
+  container.querySelectorAll('.te-archive-delete').forEach(function(btn) {
+    btn.addEventListener('click', function() { deleteOrphanedNote(this.getAttribute('data-key')); });
+  });
+}
+
+function deleteOrphanedNote(key) {
+  var s = getState();
+  delete s.notes[key];
+  saveState(s);
+  renderOrphanedNotes();
+}
+
+function initPage() {
+  document.getElementById('te-date').textContent = formatDate();
+  if (isSunday()) {
+    document.getElementById('sunday-label').style.display = 'block';
+    document.getElementById('sunday-section').style.display = 'block';
+    renderSundayCurator();
+    var s = getState();
+    if (s.digestContent) {
+      document.getElementById('digest-output').classList.add('visible');
+      document.getElementById('digest-content').innerHTML = renderMarkdown(s.digestContent);
+      document.getElementById('patterns-btn').classList.add('visible');
+      document.getElementById('assemble-btn').textContent = 'Reassemble';
+    }
+  }
+  var s = getState();
+  if (s.apiKey) {
+    document.getElementById('api-key-input').value = '****************';
+    document.getElementById('api-status').textContent = 'API key saved.';
+  }
+  if (s.feedItems.length && s.feedDate === TODAY) { renderFeed(); updateBriefMeta(); }
+}
+
+initPage();
+renderShelf();
+renderArchive();
+renderOrphanedNotes();
+</script>
+</body>
+</html>
