@@ -595,30 +595,91 @@ function renderFeed(filter) {
     container.innerHTML = filter === 'sparked' ? '<div class="te-empty">Nothing sparked yet.</div>' : '<div class="te-empty">Pull today\'s brief above.</div>';
     return;
   }
-  container.innerHTML = toShow.map(function(item) {
-    // Use URL as stable key so notes survive daily brief refreshes
+  var itemsHtml = [];
+  toShow.forEach(function(item) {
     var noteKey = item.url ? 'url_' + item.url.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 80) : (item.id || '').replace(/[^a-zA-Z0-9_]/g, '_');
     var sparked = s.sparked.indexOf(noteKey) !== -1 || s.sparked.indexOf(item.id) !== -1;
     var savedTomorrow = (s.savedForTomorrow || []).indexOf(noteKey) !== -1;
-    var note = s.notes[noteKey] || s.notes[item.id] || '';
     var articleNotesList = (s.articleNotes && s.articleNotes[noteKey]) || [];
-    var noteCount = articleNotesList.length;
-    var hasNotes = noteCount > 0 || !!note;
+    var legacyNote = s.notes[noteKey] || s.notes[item.id] || '';
+    var noteCount = articleNotesList.length || (legacyNote ? 1 : 0);
+    var hasNotes = noteCount > 0;
     var layerLabel = { intellectual: 'Ideas', zeitgeist: 'Culture', friction: 'Friction' }[item.layer] || item.layer;
-    var sid = (item.id || '').replace(/[^a-zA-Z0-9_]/g, '_');
-    return '<div class="te-item' + (sparked ? ' sparked' : '') + '" id="item-' + sid + '">' +
-      '<div class="te-item-meta"><span class="te-source-tag">' + item.source + '</span><span class="te-layer-tag ' + (item.layer||'') + '">' + layerLabel + '</span>' + (item.carriedOver ? '<span class="te-carried-badge">saved from yesterday</span>' : '') + '</div>' +
-      '<div class="te-item-title">' + item.title + '</div>' +
-      '<div class="te-item-summary">' + (item.summary || '') + '</div>' +
-      '<div class="te-item-actions">' +
-        '<button class="te-spark-btn' + (sparked ? ' on' : '') + '" onclick="toggleSpark(\'' + noteKey + '\')">' + (sparked ? 'sparked' : 'spark') + '</button>' +
-        '<button class="te-note-toggle" onclick="toggleNote(\'' + sid + '\', \'' + noteKey + '\')">' + (hasNotes ? 'notes (' + noteCount + ')' : '+ note') + '</button>' +
-        '<button class="te-save-tomorrow-btn' + (savedTomorrow ? ' on' : '') + '" onclick="' + (savedTomorrow ? 'unsaveForTomorrow' : 'saveForTomorrow') + '(\'' + noteKey + '\')">' + (savedTomorrow ? 'saved for tomorrow' : 'save for tomorrow') + '</button>' +
-        '<a class="te-link" href="' + (item.url||'#') + '" target="_blank" rel="noopener">read -></a>' +
-      '</div>' +
-      '<div class="te-note-area" id="note-' + noteKey.replace(/[^a-zA-Z0-9_]/g, '_') + '"></div>' +
-      '</div>';
-  }).join('');
+    var safeNoteKey = noteKey.replace(/[^a-zA-Z0-9_]/g, '_');
+
+    var div = document.createElement('div');
+    div.className = 'te-item' + (sparked ? ' sparked' : '');
+    div.id = 'item-' + safeNoteKey;
+
+    var metaDiv = document.createElement('div');
+    metaDiv.className = 'te-item-meta';
+    var sourceSpan = document.createElement('span');
+    sourceSpan.className = 'te-source-tag';
+    sourceSpan.textContent = item.source;
+    var layerSpan = document.createElement('span');
+    layerSpan.className = 'te-layer-tag ' + (item.layer || '');
+    layerSpan.textContent = layerLabel;
+    metaDiv.appendChild(sourceSpan);
+    metaDiv.appendChild(layerSpan);
+    if (item.carriedOver) {
+      var badge = document.createElement('span');
+      badge.className = 'te-carried-badge';
+      badge.textContent = 'saved from yesterday';
+      metaDiv.appendChild(badge);
+    }
+
+    var titleDiv = document.createElement('div');
+    titleDiv.className = 'te-item-title';
+    titleDiv.textContent = item.title;
+
+    var summaryDiv = document.createElement('div');
+    summaryDiv.className = 'te-item-summary';
+    summaryDiv.textContent = item.summary || '';
+
+    var actionsDiv = document.createElement('div');
+    actionsDiv.className = 'te-item-actions';
+
+    var sparkBtn = document.createElement('button');
+    sparkBtn.className = 'te-spark-btn' + (sparked ? ' on' : '');
+    sparkBtn.textContent = sparked ? 'sparked' : 'spark';
+    sparkBtn.onclick = (function(nk) { return function() { toggleSpark(nk); }; })(noteKey);
+
+    var noteBtn = document.createElement('button');
+    noteBtn.className = 'te-note-toggle';
+    noteBtn.textContent = hasNotes ? 'notes (' + noteCount + ')' : '+ note';
+    noteBtn.onclick = (function(nk) { return function() { toggleNote(nk); }; })(noteKey);
+
+    var saveTmrBtn = document.createElement('button');
+    saveTmrBtn.className = 'te-save-tomorrow-btn' + (savedTomorrow ? ' on' : '');
+    saveTmrBtn.textContent = savedTomorrow ? 'saved for tomorrow' : 'save for tomorrow';
+    saveTmrBtn.onclick = (function(nk, st) { return function() { st ? unsaveForTomorrow(nk) : saveForTomorrow(nk); }; })(noteKey, savedTomorrow);
+
+    var readLink = document.createElement('a');
+    readLink.className = 'te-link';
+    readLink.href = item.url || '#';
+    readLink.target = '_blank';
+    readLink.rel = 'noopener';
+    readLink.textContent = 'read ->';
+
+    actionsDiv.appendChild(sparkBtn);
+    actionsDiv.appendChild(noteBtn);
+    actionsDiv.appendChild(saveTmrBtn);
+    actionsDiv.appendChild(readLink);
+
+    var noteArea = document.createElement('div');
+    noteArea.className = 'te-note-area';
+    noteArea.id = 'note-' + safeNoteKey;
+
+    div.appendChild(metaDiv);
+    div.appendChild(titleDiv);
+    div.appendChild(summaryDiv);
+    div.appendChild(actionsDiv);
+    div.appendChild(noteArea);
+
+    itemsHtml.push(div);
+  });
+  container.innerHTML = '';
+  itemsHtml.forEach(function(el) { container.appendChild(el); });;
 }
 
 function saveOpenNotes() {
@@ -643,7 +704,7 @@ function toggleSpark(id) {
   renderFeed(label === 'all' ? null : label === 'sparked' ? 'sparked' : label);
 }
 
-function toggleNote(id, noteKey) {
+function toggleNote(noteKey) {
   var safeNoteKey = noteKey.replace(/[^a-zA-Z0-9_]/g, '_');
   var area = document.getElementById('note-' + safeNoteKey);
   if (!area) return;
