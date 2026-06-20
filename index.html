@@ -386,6 +386,7 @@ async function fetchBrief(force) {
     var body = JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: 3000,
+      system: 'You are a research assistant that returns ONLY valid JSON arrays. Never explain your reasoning. Never add text before or after the JSON. Never say what you are doing or checking. Just search and return the JSON array.',
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{ role: 'user', content: searchPrompt }]
     });
@@ -472,30 +473,21 @@ async function fetchBrief(force) {
 
     scored = tryParseJson(raw);
 
-    // If Claude returned reasoning text instead of JSON, ask it to just output the JSON
+    // If Claude returned reasoning text instead of JSON, make a fresh cleanup call
     if (!scored || !scored.length) {
       setProgress('Formatting results...');
-      var cleanupMessages = [
-        { role: 'user', content: searchPrompt },
-        { role: 'assistant', content: data.content },
-      ];
-      // Add any tool results
-      var toolResults2 = [];
-      for (var ti = 0; ti < blocks.length; ti++) {
-        if (blocks[ti].type === 'tool_use') {
-          toolResults2.push({ type: 'tool_result', tool_use_id: blocks[ti].id, content: 'Search completed.' });
-        }
-      }
-      if (toolResults2.length) cleanupMessages.push({ role: 'user', content: toolResults2 });
-      if (textBlock.text.trim()) {
-        cleanupMessages.push({ role: 'assistant', content: textBlock.text });
-      }
-      cleanupMessages.push({ role: 'user', content: 'Output ONLY the JSON array now. Nothing else. Start with [ and end with ].' });
+      // Extract any article info mentioned in the reasoning text
+      var cleanupPrompt = 'Based on your recent web searches, output ONLY a JSON array of the best articles you found. No explanation. Just the raw JSON array starting with [. Here is what you found: ' + (textBlock ? textBlock.text.slice(0, 2000) : 'No results') + ' Now output ONLY the JSON array:';
 
       var res3 = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': s.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 3000, messages: cleanupMessages })
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 3000,
+          system: 'You output ONLY valid JSON arrays. Nothing else. No explanation. No preamble. Start with [ and end with ].',
+          messages: [{ role: 'user', content: cleanupPrompt }]
+        })
       });
       var data3 = await res3.json();
       if (!data3.error) {
