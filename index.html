@@ -93,6 +93,10 @@
   .chip.src { cursor: pointer; }
   .chip.src:hover { background: var(--border); }
   .e-date { font-size: 11px; color: var(--ink-ghost); margin-left: auto; }
+  .entry.used { background: #fbfaf7; border-color: #e8e2d0; }
+  .used-toggle { cursor: pointer; border: 0.5px solid var(--border); background: none; font-family: inherit; }
+  .used-toggle:hover { border-color: var(--border-mid); color: var(--ink-muted); }
+  .used-toggle.on { background: #f5eeda; color: #8a6d1d; border-color: #e0cf9a; }
   .e-del { font-size: 11px; color: var(--ink-ghost); background: none; border: none; cursor: pointer; padding: 2px 4px; font-family: inherit; }
   .e-del:hover { color: #993c1d; }
 
@@ -222,6 +226,11 @@
         <option value="90">Past 3 months</option>
         <option value="365">Past year</option>
         <option value="custom">Custom range</option>
+      </select>
+      <select id="f-used">
+        <option value="">Used or not</option>
+        <option value="no">Not used yet</option>
+        <option value="yes">Already used</option>
       </select>
       <input type="date" id="f-from" style="display:none" title="From">
       <input type="date" id="f-to" style="display:none" title="To">
@@ -426,7 +435,7 @@ function saveEntry() {
 function entryEl(e, opts) {
   opts = opts || {};
   var d = document.createElement('div');
-  d.className = 'entry';
+  d.className = 'entry' + (e.used ? ' used' : '');
 
   if (e.link) {
     var lw = document.createElement('div');
@@ -474,6 +483,20 @@ function entryEl(e, opts) {
   dt.textContent = opts.longDate ? fmtLong(e.date) : fmtDate(e.date);
   f.appendChild(dt);
 
+  var used = document.createElement('button');
+  used.className = 'chip used-toggle' + (e.used ? ' on' : '');
+  used.textContent = e.used ? 'used \u2713' : 'mark used';
+  used.title = 'Toggle whether this has gone into something you wrote';
+  used.onclick = function () {
+    var s = load();
+    var item = s.entries.filter(function (x) { return x.id === e.id; })[0];
+    if (!item) return;
+    item.used = !item.used;
+    save(s);
+    renderAll();
+  };
+  f.appendChild(used);
+
   var del = document.createElement('button');
   del.className = 'e-del'; del.textContent = 'delete'; del.title = 'Delete entry';
   del.onclick = function () {
@@ -510,6 +533,7 @@ function jumpFilter(kind, val) {
   document.getElementById('f-type').value = '';
   document.getElementById('f-src').value = kind === 'src' ? val : '';
   document.getElementById('f-tag').value = kind === 'tag' ? val : '';
+  document.getElementById('f-used').value = '';
   document.getElementById('f-range').value = '';
   document.getElementById('f-from').style.display = 'none';
   document.getElementById('f-to').style.display = 'none';
@@ -538,12 +562,15 @@ function renderArchive() {
   var ft = document.getElementById('f-type').value;
   var fs = document.getElementById('f-src').value;
   var fg = document.getElementById('f-tag').value;
+  var fu = document.getElementById('f-used').value;
   var bounds = dateBounds();
 
   var list = s.entries.filter(function (e) {
     if (ft && e.type !== ft) return false;
     if (fs && e.source !== fs) return false;
     if (fg && (e.tags || []).indexOf(fg) === -1) return false;
+    if (fu === 'yes' && !e.used) return false;
+    if (fu === 'no' && e.used) return false;
     if (bounds) {
       var t = new Date(e.date).getTime();
       if (t < bounds.from || t > bounds.to) return false;
@@ -989,6 +1016,7 @@ document.getElementById('q-search').oninput = renderArchive;
 document.getElementById('f-type').onchange = renderArchive;
 document.getElementById('f-src').onchange = renderArchive;
 document.getElementById('f-tag').onchange = renderArchive;
+document.getElementById('f-used').onchange = renderArchive;
 
 document.getElementById('f-range').onchange = function () {
   var custom = this.value === 'custom';
@@ -1003,6 +1031,7 @@ document.getElementById('f-clear').onclick = function () {
   document.getElementById('f-type').value = '';
   document.getElementById('f-src').value = '';
   document.getElementById('f-tag').value = '';
+  document.getElementById('f-used').value = '';
   document.getElementById('f-range').value = '';
   document.getElementById('f-from').value = '';
   document.getElementById('f-to').value = '';
