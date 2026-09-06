@@ -79,6 +79,7 @@
 
   /* Entry card */
   .entry { background: var(--card); border: 0.5px solid var(--border); border-radius: 12px; padding: 1rem 1.15rem; margin-bottom: 10px; }
+  .entry.editing { border-color: var(--accent); }
   .entry:hover { border-color: var(--border-mid); }
   .e-link { display: flex; align-items: center; gap: 6px; padding-bottom: 9px; border-bottom: 0.5px solid var(--border); margin-bottom: 11px; }
   .e-link a { font-size: 12px; color: var(--accent); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -117,11 +118,15 @@
   /* Digest */
   .dg-head { display: flex; gap: 8px; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
   .dg-head select { font-family: inherit; font-size: 13px; border: 0.5px solid var(--border-mid); border-radius: var(--radius); padding: 8px 11px; background: var(--card); color: var(--ink); cursor: pointer; outline: none; }
+  .dg-unused-lbl { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-muted); cursor: pointer; }
+  .dg-unused-lbl input { accent-color: var(--accent); cursor: pointer; }
   .dg-group { margin-bottom: 2rem; }
   .dg-gtitle { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; font-weight: 400; margin-bottom: 0.85rem; padding-bottom: 5px; border-bottom: 0.5px solid var(--border-mid); }
   .dg-item { padding: 0.85rem 0; border-bottom: 0.5px solid var(--border); }
+  .dg-item.used { opacity: 0.55; }
+  .dg-used-btn { margin-left: auto; }
   .dg-item:last-child { border-bottom: none; }
-  .dg-src { font-size: 11px; color: var(--ink-faint); margin-bottom: 5px; }
+  .dg-src { font-size: 11px; color: var(--ink-faint); margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
   .dg-src a { color: var(--accent); text-decoration: none; }
   .dg-src a:hover { text-decoration: underline; }
   .dg-quote { font-family: 'Lora', Georgia, serif; font-size: 15px; line-height: 1.75; padding-left: 12px; border-left: 2px solid var(--border-mid); margin-bottom: 8px; white-space: pre-wrap; }
@@ -249,9 +254,15 @@
         <option value="source">Group by source</option>
         <option value="type">Group by type</option>
         <option value="date">By date</option>
+        <option value="none">Random order</option>
       </select>
+      <label class="dg-unused-lbl">
+        <input type="checkbox" id="dg-unused"> not used yet, any week
+      </label>
+      <button class="btn sm" id="shuffle-dg" title="A random handful of unused notes">Shuffle</button>
       <button class="btn sm" id="copy-dg">Copy</button>
     </div>
+    <div id="shuffle-note" style="display:none"></div>
     <div id="dg-body"></div>
     <div class="patterns" id="p-wrap" style="display:none">
       <button class="btn" id="pat-btn">Find patterns in this week</button>
@@ -432,10 +443,87 @@ function saveEntry() {
 }
 
 /* ---------- Entry rendering ---------- */
+function renderEntryEdit(container, e) {
+  container.className = 'entry editing';
+  container.innerHTML = '';
+
+  var seg = document.createElement('div');
+  seg.className = 'seg';
+  ['Reading', 'Clinical', 'Thought'].forEach(function (tName) {
+    var b = document.createElement('button');
+    b.className = 'seg-b' + (e.type === tName ? ' on' : '');
+    b.textContent = tName;
+    b.type = 'button';
+    b.onclick = function () {
+      e._editType = tName;
+      var bs = seg.querySelectorAll('.seg-b');
+      for (var i = 0; i < bs.length; i++) bs[i].classList.remove('on');
+      b.classList.add('on');
+    };
+    seg.appendChild(b);
+  });
+  e._editType = e.type || 'Reading';
+  container.appendChild(seg);
+
+  function labeled(label, el) {
+    var lb = document.createElement('div');
+    lb.className = 'flabel'; lb.textContent = label;
+    container.appendChild(lb);
+    container.appendChild(el);
+  }
+
+  var qEl = document.createElement('textarea');
+  qEl.className = 'q-field'; qEl.value = e.quote || '';
+  labeled('Quote', qEl);
+
+  var nEl = document.createElement('textarea');
+  nEl.className = 'n-field'; nEl.value = e.note || '';
+  labeled('Note', nEl);
+
+  var lEl = document.createElement('input');
+  lEl.type = 'url'; lEl.value = e.link || '';
+  labeled('Link', lEl);
+
+  var row = document.createElement('div');
+  row.className = 'f-row';
+  var sEl = document.createElement('input');
+  sEl.type = 'text'; sEl.placeholder = 'Source'; sEl.value = e.source || '';
+  var tEl = document.createElement('input');
+  tEl.type = 'text'; tEl.placeholder = 'Tags, comma separated';
+  tEl.value = (e.tags || []).join(', ');
+  row.appendChild(sEl); row.appendChild(tEl);
+  container.appendChild(row);
+
+  var foot = document.createElement('div');
+  foot.className = 'cap-foot';
+  var cancel = document.createElement('button');
+  cancel.className = 'btn'; cancel.textContent = 'Cancel';
+  cancel.onclick = function () { renderAll(); };
+  var doneBtn = document.createElement('button');
+  doneBtn.className = 'btn primary'; doneBtn.textContent = 'Save changes';
+  doneBtn.onclick = function () {
+    var q = qEl.value.trim(), n = nEl.value.trim();
+    if (!q && !n) { toast('Add a quote or a note first'); return; }
+    var s = load();
+    var item = s.entries.filter(function (x) { return x.id === e.id; })[0];
+    if (!item) return;
+    item.quote = q; item.note = n; item.link = lEl.value.trim();
+    item.source = sEl.value.trim();
+    item.tags = tEl.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    item.type = e._editType;
+    save(s); toast('Updated'); renderAll();
+  };
+  foot.appendChild(cancel); foot.appendChild(doneBtn);
+  container.appendChild(foot);
+}
+
 function entryEl(e, opts) {
   opts = opts || {};
   var d = document.createElement('div');
   d.className = 'entry' + (e.used ? ' used' : '');
+  d.id = 'entry-' + e.id;
+
+  if (opts.editing) { renderEntryEdit(d, e); return d; }
 
   if (e.link) {
     var lw = document.createElement('div');
@@ -496,6 +584,16 @@ function entryEl(e, opts) {
     renderAll();
   };
   f.appendChild(used);
+
+  var editBtn = document.createElement('button');
+  editBtn.className = 'e-del'; editBtn.textContent = 'edit'; editBtn.title = 'Edit this entry';
+  editBtn.onclick = function () {
+    var live = document.getElementById('entry-' + e.id);
+    if (!live) return;
+    live.innerHTML = '';
+    renderEntryEdit(live, e);
+  };
+  f.appendChild(editBtn);
 
   var del = document.createElement('button');
   del.className = 'e-del'; del.textContent = 'delete'; del.title = 'Delete entry';
@@ -657,8 +755,20 @@ function buildWeeks() {
   sel.value = (keys.indexOf(cur) !== -1) ? cur : keys[0];
 }
 
+var shuffledIds = null;
+
 function digestEntries() {
   var s = load();
+  if (shuffledIds) {
+    var byId = {};
+    s.entries.forEach(function (e) { byId[e.id] = e; });
+    return shuffledIds.map(function (id) { return byId[id]; }).filter(Boolean);
+  }
+  var unusedMode = document.getElementById('dg-unused').checked;
+  if (unusedMode) {
+    return s.entries.filter(function (e) { return !e.used; })
+      .sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
+  }
   var wk = document.getElementById('wk-pick').value;
   if (!wk) return [];
   var st = new Date(wk + 'T00:00:00').getTime();
@@ -669,16 +779,52 @@ function digestEntries() {
   }).sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
 }
 
+function shuffleDigest() {
+  var s = load();
+  var pool = s.entries.filter(function (e) { return !e.used; });
+  if (!pool.length) { toast('Everything is marked used'); return; }
+  var n = Math.min(20, pool.length);
+  var picked = [];
+  var copy = pool.slice();
+  for (var i = 0; i < n; i++) {
+    var idx = Math.floor(Math.random() * copy.length);
+    picked.push(copy.splice(idx, 1)[0]);
+  }
+  shuffledIds = picked.map(function (e) { return e.id; });
+  document.getElementById('dg-unused').checked = false;
+  document.getElementById('wk-pick').disabled = true;
+  var note = document.getElementById('shuffle-note');
+  note.style.display = 'block';
+  note.innerHTML = n + ' at random from ' + pool.length + ' unused' +
+    ' \u2014 <button class="e-del" id="clear-shuffle">back to normal view</button>';
+  document.getElementById('clear-shuffle').onclick = clearShuffle;
+  renderDigest();
+}
+
+function clearShuffle() {
+  shuffledIds = null;
+  document.getElementById('shuffle-note').style.display = 'none';
+  document.getElementById('wk-pick').disabled = document.getElementById('dg-unused').checked;
+  renderDigest();
+}
+
 function renderDigest() {
+  var unusedMode = document.getElementById('dg-unused').checked;
+  document.getElementById('wk-pick').disabled = unusedMode || !!shuffledIds;
   var list = digestEntries();
   var by = document.getElementById('dg-group-by').value;
   var box = document.getElementById('dg-body');
   box.innerHTML = '';
   document.getElementById('p-wrap').style.display = list.length ? 'block' : 'none';
   document.getElementById('pat-out').textContent = '';
+  document.getElementById('pat-btn').textContent = shuffledIds
+    ? 'Find patterns across this shuffle'
+    : unusedMode ? 'Find patterns across unused notes' : 'Find patterns in this week';
 
   if (!list.length) {
-    box.innerHTML = '<div class="empty">Nothing saved that week.</div>';
+    box.innerHTML = '<div class="empty">' +
+      (shuffledIds ? 'Nothing left in that shuffle.' :
+       unusedMode ? 'Everything is marked used.' : 'Nothing saved that week.') + '</div>';
     return;
   }
 
@@ -689,7 +835,8 @@ function renderDigest() {
     groups[k].push(e);
   }
   list.forEach(function (e) {
-    if (by === 'tag') {
+    if (by === 'none') push('', e);
+    else if (by === 'tag') {
       if (!e.tags || !e.tags.length) push('Untagged', e);
       else e.tags.forEach(function (t) { push(t, e); });
     } else if (by === 'source') push(e.source || 'No source', e);
@@ -708,13 +855,15 @@ function renderDigest() {
   order.forEach(function (k) {
     var g = document.createElement('div');
     g.className = 'dg-group';
-    var h = document.createElement('div');
-    h.className = 'dg-gtitle';
-    h.textContent = k + '  (' + groups[k].length + ')';
-    g.appendChild(h);
+    if (k !== '' || by !== 'none') {
+      var h = document.createElement('div');
+      h.className = 'dg-gtitle';
+      h.textContent = k + '  (' + groups[k].length + ')';
+      g.appendChild(h);
+    }
     groups[k].forEach(function (e) {
       var it = document.createElement('div');
-      it.className = 'dg-item';
+      it.className = 'dg-item' + (e.used ? ' used' : '');
       var meta = document.createElement('div');
       meta.className = 'dg-src';
       meta.appendChild(document.createTextNode(fmtDate(e.date) + (e.source ? '  ' + e.source : '') + '  '));
@@ -723,6 +872,18 @@ function renderDigest() {
         a.href = e.link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'link';
         meta.appendChild(a);
       }
+      var usedBtn = document.createElement('button');
+      usedBtn.className = 'chip used-toggle dg-used-btn' + (e.used ? ' on' : '');
+      usedBtn.textContent = e.used ? 'used \u2713' : 'mark used';
+      usedBtn.onclick = function () {
+        var s = load();
+        var item = s.entries.filter(function (x) { return x.id === e.id; })[0];
+        if (!item) return;
+        item.used = !item.used;
+        save(s);
+        renderDigest();
+      };
+      meta.appendChild(usedBtn);
       it.appendChild(meta);
       if (e.quote) {
         var q = document.createElement('div');
@@ -1040,8 +1201,13 @@ document.getElementById('f-clear').onclick = function () {
   renderArchive();
 };
 
-document.getElementById('wk-pick').onchange = renderDigest;
+document.getElementById('wk-pick').onchange = function () { shuffledIds = null; document.getElementById('shuffle-note').style.display = 'none'; renderDigest(); };
 document.getElementById('dg-group-by').onchange = renderDigest;
+document.getElementById('dg-unused').onchange = function () { shuffledIds = null; document.getElementById('shuffle-note').style.display = 'none'; renderDigest(); };
+document.getElementById('shuffle-dg').onclick = function () {
+  document.getElementById('dg-group-by').value = 'none';
+  shuffleDigest();
+};
 document.getElementById('pat-btn').onclick = findPatterns;
 document.getElementById('copy-dg').onclick = function () {
   var txt = digestText();
